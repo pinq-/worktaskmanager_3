@@ -16,6 +16,10 @@
   <b-row class="text-center">
     <b-col>
       <b-button @click = "endday_modal = !endday_modal" variant="success">Lopeta päivä
+      </b-button>         
+      <b-button @click = "pause.status = !pause.status" :variant="pause.status ? 'warning': 'primary'">
+        <div v-if = "!pause.status">Pause</div>
+        <div v-if = "pause.status">Jatka</div>
       </b-button>    
     </b-col>
     <b-col>
@@ -45,14 +49,14 @@
     </b-col>
   </b-row>
 </b-container> 
-  <h2>Tehtävät:</h2>
+  <h2 style = "text-align:center;"><b>Tehtävät</b></h2>
   <b-list-group v-for = "(todo, index) in todos"
       :key="index">
       <b-list-group-item
      class="flex-column align-items-start" :style = "task_tag_color(todo)" v-if="todo.status != 2">
        
     <div class="d-flex w-100 justify-content-between">
-      <h5 class="mb-1"><b>{{ todo.content }}</b></h5>
+      <h5 class="mb-1" @click = "namechange_modal = !namechange_modal; namechange = todo"><b>{{ todo.content }}</b></h5>
       <small v-if="get_task_spend_time(todo.content)">
         Tänän käytetty aika: {{get_task_spend_time(todo.content)}}
       </small>
@@ -63,12 +67,12 @@
     <b-container fluid>
       <b-row>
         <b-col>
-    <b-button variant="primary" @click = "startTask(todo)">
-      <font-awesome-icon icon="play" />
-      <b-badge v-if="todo.status == 1" variant="danger" text-indicator>
-        Käynissä
-      </b-badge> 
-    </b-button>
+          <b-button variant="primary" @click = "startTask(todo)">
+            <font-awesome-icon icon="play" />
+            <b-badge v-if="todo.status == 1" variant="danger" text-indicator>
+              Käynissä
+            </b-badge> 
+          </b-button>
         </b-col>
         <b-col>
           <b-badge variant="info" v-if="todo.prio == 1"> Tärkeys:{{todo.prio}} </b-badge>
@@ -84,7 +88,8 @@
             Tägi:
           </b> 
           <b-badge variant="light">
-            {{todo.tag.text}}</b-badge>
+            {{todo.tag.text}}
+          </b-badge>
         </b-col>
         <b-col>
             <b-button variant="success" @click = "todo.status = 2; saveData()">
@@ -149,8 +154,14 @@
       </b-form>
     </b-modal>
     <b-modal v-model = "tags_modal" @ok="add_tag()">
-      <b-form-input type="color" v-model = "new_tag.value"></b-form-input>
+      <label>Nimi:</label>
       <b-form-input type="text" v-model = "new_tag.text"></b-form-input>
+      <label>Valitse väri:</label>
+      <b-form-input type="color" v-model = "new_tag.value"></b-form-input>
+    </b-modal>      
+    <b-modal v-model = "namechange_modal">
+      <label for="namechage-1">Tehtävä nimike</label>
+      <b-form-input id = "namechage-1" type="text" v-model = "namechange.content"></b-form-input>
     </b-modal>    
     <b-modal title = "Työpäivän kuvaus" v-model = "endday_modal" @ok="end_day()">
        <b-form-textarea @submit="end_day()"
@@ -178,13 +189,20 @@
       const newTodo = ref('');
       const startTime = ref(0)
       const DaystartTime = ref(0)
-      const spentTime = ref()
+      const spentTime = ref(0)
       const now_task = ref('')
       const day_tasks = ref({})
       const Done_day_task = ref([])
       const task_modal = ref(false)
       const endday_modal = ref(false)
+      const namechange_modal = ref(false)
+      const namechange = ref({})
       const endday_descri = ref('')
+      const pause = ref({
+        state: false,
+        time_start:0,
+        time_spend: 0
+      })
       const name = ref('')
       const date = ref('')
       const tags_modal = ref(false)
@@ -372,20 +390,29 @@
         }
        }
 
-      setInterval(() => {
-        if(DaystartTime.value != 0){
-          const now_time = new Date()
-          spentTime.value = now_time.getTime() - DaystartTime.value
-            day_tasks.value[now_task.value.content].spendtime += now_time.getTime() -day_tasks.value[now_task.value.content].starttime
-            day_tasks.value[now_task.value.content].starttime = now_time.getTime()
+       function muuta_nime(){
+        console.log(namechange)
+       }
 
-        }
+      setInterval(() => {
+        const now_time = new Date()
+        if(DaystartTime.value != 0)
+          if(pause.value.status ){
+            day_tasks.value[now_task.value.content].starttime = now_time.getTime()
+          }
+          else{
+            // spentTime.value = now_time.getTime() - DaystartTime.value
+              day_tasks.value[now_task.value.content].spendtime += now_time.getTime() -day_tasks.value[now_task.value.content].starttime
+              spentTime.value += now_time.getTime() -day_tasks.value[now_task.value.content].starttime
+              day_tasks.value[now_task.value.content].starttime = now_time.getTime()
+
+          }
 
       }, 1000)
 
 
        function mmseconds2time(mmseconds){
-        //const seconds = Math.floor((mmseconds / 1000) % 60);
+        const seconds = Math.floor((mmseconds / 1000) % 60);
         if(mmseconds == 0 || mmseconds === undefined){
           return '00:00'
         }
@@ -395,7 +422,7 @@
         return [
           hours.toString().padStart(2, "0"),
           minutes.toString().padStart(2, "0"),
-          //seconds.toString().padStart(2, "0")
+          seconds.toString().padStart(2, "0")
           ].join(":");
        }
        function hexToHSL(H) {
@@ -480,6 +507,10 @@
         form_dday,
         remove_donetask_history_all,
         remove_tasks_all,
+        muuta_nime,
+        namechange_modal,
+        namechange,
+        pause
 
       }
     }
